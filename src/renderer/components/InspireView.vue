@@ -1,5 +1,5 @@
 <template>
-  <v-layout column justify-center>
+  <v-layout column justify-center align-center>
     <img src="/static/v.png" alt="Vuetify.js" class="mb-5" />
     <blockquote>
       &#8220;First, solve the problem. Then, write the code.&#8221;
