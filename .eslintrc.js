@@ -29,6 +29,7 @@ module.exports = {
     'comma-dangle': 0,
     'object-curly-spacing': 0,
     'block-spacing': 0,
-    'no-unused-vars': 0
+    'no-unused-vars': 0,
+    'arrow-body-style': 0
   }
 };
