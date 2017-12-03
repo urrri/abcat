@@ -100,7 +100,7 @@
         }
         const catalog = localStorage.catalog;
         // console.log(catalogTool);
-        const promise = catalogTool.readdirs(catalog);
+        const promise = catalogTool.loadCatalog(catalog);
         promise.then((res) => {
           console.log('res', catalog);
           console.log(res);
