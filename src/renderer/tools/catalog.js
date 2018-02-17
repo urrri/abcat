@@ -1,4 +1,4 @@
-import { getDefaultInfo } from './info';
+import { getDefaultInfo, parseInfoFields } from './info';
 
 const jfs = require('fs-jetpack');
 const AutoDecoder = require('autodetect-decoder-stream');
@@ -197,10 +197,6 @@ const detectCharsetLoadFile = (path) => {
       resolve(ss.join(''));
     });
   });
-  // return fs.readFile(path).then((data) => {
-  //   const charset = jschardet.detect(data);
-  //   return charset.encoding;
-  // }).then(charset => fs.readFile(path, charset));
 };
 
 export const loadInfo = (node) => {
@@ -219,7 +215,7 @@ export const loadInfo = (node) => {
     console.log('Loading info', node.infoFile.path);
     return detectCharsetLoadFile(node.infoFile.path).then((info) => {
       node.data = getDefaultInfo();
-      node.data.info = info;
+      node.data.info = parseInfoFields(info.trim());
     });
   }
   console.log('No info');

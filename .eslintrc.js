@@ -31,6 +31,7 @@ module.exports = {
     'block-spacing': 0,
     'no-unused-vars': 0,
     'arrow-body-style': 0,
-    'max-len': 0
+    'max-len': 0,
+    'linebreak-style': 0
   }
 };
