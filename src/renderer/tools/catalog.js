@@ -1,11 +1,18 @@
+import { getDefaultInfo } from './info';
+
+const jfs = require('fs-jetpack');
+const AutoDecoder = require('autodetect-decoder-stream');
 const promisify = require('promisify-node');
-const fs = promisify('fs');
+const fs = promisify('fs'); // todo:replace fs by jfs
+// const jschardet = require('jschardet');
 const path = require('path');
 
 const handleError = (err) => {
   console.log(err);
   return Promise.reject(err);
 };
+
+const findOneOf = (values = [], map = {}) => map[values.find(value => !!map[value])];
 
 const isInList = (value, list = []) => !!list.find(item => item === value);
 
@@ -16,7 +23,7 @@ const mapFiles = files => files.reduce((map, fileNode) => {
 
 /* eslint-disable no-use-before-define */
 
-function scanPath(path) {
+export function scanPath(path) {
   return fs.stat(path).then((stats) => {
     console.log(path, stats);
     const result = {
@@ -70,24 +77,30 @@ const findInlineMediaItem = (fileNode, fileMap) => {
       inline.infoFile = fileMap[infoFileName];
       return true;
     }
+    const infoFileNameNoExt = `${path.basename(baseName, path.extname(baseName))}.txt`;
+    if (fileMap[infoFileNameNoExt]) {
+      inline.infoFile = fileMap[infoFileNameNoExt];
+      return true;
+    }
 
     return false;
   };
 
   const baseName = path.basename(fileNode.path).toLowerCase();
-  if (!findDataFiles(baseName)) {
-    const baseNameNoExt = path.basename(baseName, path.extname(baseName));
-    if (!findDataFiles(baseNameNoExt)) {
-      return undefined;
-    }
-  }
-  return inline;
+  return findDataFiles(baseName) ? inline : undefined;
 };
 
-const parseFolder = (folderNode, {level = 0, root} = {}) => {
+const infoFiles = ['info.txt', '-info.txt'];
+const ignoreFiles = ['audio.txt', '-audio.txt', 'readme.txt'];
+const imageExt = ['.jpg', '.jpeg', '.png', '.gif'];
+const mediaExt = ['.mp3', '.ogg', '.m4b', '.wma'];
+const infoExt = ['.txt', '.info'];
+
+const parseFolder = (folderNode, {level = 0, root, parent} = {}) => {
   const cat = [];
 
   const current = {
+    parent,
     isFolder: true,
     path: folderNode.path,
     stats: folderNode.stats,
@@ -102,48 +115,70 @@ const parseFolder = (folderNode, {level = 0, root} = {}) => {
   const fileMap = mapFiles(folderNode.files);
   if (fileMap['abcat.json']) {
     current.dataFile = fileMap['abcat.json'];
-  } else if (fileMap['info.txt']) {
-    current.infoFile = fileMap['info.txt'];
+  } else {
+    const infoFile = findOneOf(infoFiles, fileMap);
+    if (infoFile) {
+      current.infoFile = infoFile;
+    }
   }
+
+  const inlineInfos = {};
+  const potentialInfos = [];
+
   folderNode.files.forEach((fileNode) => {
     const filePath = fileNode.path;
     const ext = path.extname(filePath).toLowerCase();
 
-    if (isInList(ext, ['.jpg', '.jpeg', '.png'])) {
+    if (isInList(ext, imageExt)) {
       current.images.push(fileNode);
-    } else if (isInList(ext, ['.mp3', '.ogg'])) {
+    } else if (isInList(ext, mediaExt)) {
       const inline = findInlineMediaItem(fileNode, fileMap);
       if (inline) {
         inline.fullName = path.relative(root, fileNode.path);
         cat.push(inline);
+        inline.parent = current;
+        current.sub.push(inline);
+        if (inline.infoFile) {
+          inlineInfos[inline.infoFile.path] = inline.infoFile;
+        }
       } else {
         current.media.push(fileNode);
       }
-    } else if (isInList(ext, ['.txt', '.info'])) {
-      if (!current.infoFile && !current.dataFile &&
-        !isInList(path.basename(filePath).toLowerCase(), ['audio.txt'])) {
-        current.infoFile = fileNode;
+    } else if (isInList(ext, infoExt)) {
+      // collect all potential infos if no info/data found
+      if (!current.infoFile && !current.dataFile) {
+        potentialInfos.push(fileNode);
       }
     } else {
       current.unknown.push(fileNode);
     }
   });
 
-  if (level > 0 && (current.dataFile || current.infoFile)) {
+  // filter potential infos if no info/data found
+  if (!current.infoFile && !current.dataFile) {
+    current.potentialInfoFiles = potentialInfos.filter((fileNode) => {
+      const filePath = fileNode.path;
+      return (!inlineInfos[filePath] &&
+          !isInList(path.basename(filePath).toLowerCase(), ignoreFiles));
+    });
+  }
+
+  if (level > 0 &&
+      (current.dataFile || current.infoFile || (current.potentialInfoFiles && current.potentialInfoFiles.length))) {
     cat.push(current);
   }
 
   // parse sub-folders
   folderNode.folders.forEach((folderNode) => {
-    const sub = parseFolder(folderNode, {level: level + 1, root});
+    const sub = parseFolder(folderNode, {level: level + 1, root, parent: current});
     cat.push(...sub);
-    current.sub.push(sub);
+    current.sub.push(...sub);
   });
 
   return cat;
 };
 
-const loadCatalog = (root) => {
+export const loadCatalog = (root) => {
   root = path.normalize(root);
   return scanPath(root).then((tree) => {
     if (tree.isFolder) {
@@ -153,6 +188,49 @@ const loadCatalog = (root) => {
   });
 };
 
+const detectCharsetLoadFile = (path) => {
+  return new Promise((resolve, reject) => {
+    const stream = fs.createReadStream(path).pipe(new AutoDecoder());
+    const ss = [];
+    stream.on('data', data => ss.push(data)).on('end', () => {
+      // stream.destroy();
+      resolve(ss.join(''));
+    });
+  });
+  // return fs.readFile(path).then((data) => {
+  //   const charset = jschardet.detect(data);
+  //   return charset.encoding;
+  // }).then(charset => fs.readFile(path, charset));
+};
+
+export const loadInfo = (node) => {
+  if (node.dataFile) {
+    console.log('Loading data', node.dataFile.path);
+    return fs.readFile(node.dataFile.path, 'utf8').then((data) => {
+      node.data = JSON.parse(data);
+    });
+  } else if (node.infoFile) {
+    // return fs.readFile(node.infoFile.path, 'utf8').then((data) => {
+    //   if (data.indexOf('а') < 0) {
+    //     return fs.readFile(node.infoFile.path, '');
+    //   }
+    //   return data;
+    // });
+    console.log('Loading info', node.infoFile.path);
+    return detectCharsetLoadFile(node.infoFile.path).then((info) => {
+      node.data = getDefaultInfo();
+      node.data.info = info;
+    });
+  }
+  console.log('No info');
+  return Promise.resolve();
+};
+
+export const loadAllInfo = (catalog) => {
+  return Promise.all(catalog.map(node => loadInfo(node))).then(() => catalog);
+};
+
+/*
 const readdir = (dir, {level = 0, root = dir} = {}) => {
   const cat = [];
   const current = {
@@ -217,8 +295,9 @@ const readdirs = (root) => {
 };
 
 export default {
-  readdirs,
+  // readdirs,
   scanPath,
   loadCatalog
 };
+*/
 

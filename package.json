@@ -55,7 +55,10 @@
     }
   },
   "dependencies": {
+    "autodetect-decoder-stream": "^1.0.0",
     "axios": "^0.16.1",
+    "fs-jetpack": "^1.2.0",
+    "jschardet": "~1.6.0",
     "promisify-node": "^0.4.0",
     "vue": "^2.4.2",
     "vue-electron": "^1.0.6",

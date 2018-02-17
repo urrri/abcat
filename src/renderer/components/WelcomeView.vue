@@ -63,24 +63,26 @@
 
 <script>
   import SystemInformation from './WelcomeView/SystemInformation';
-  import catalogTool from '../tools/catalog';
+  import { loadCatalog, loadAllInfo } from '../tools/catalog';
 
-  const fs = require('fs');
-  const path = require('path');
+  /*
+    const fs = require('fs');
+    const path = require('path');
 
-  const readdirs = (path_) => {
-    fs.readdir(path_, (err, files) => {
-      files.forEach((file) => {
-        file = path.join(path_, file);
-        fs.stat(file, (err, stats) => {
-          console.log(file, stats);
-          if (stats.isDirectory()) {
-            readdirs(file);
-          }
+    const readdirs = (path_) => {
+      fs.readdir(path_, (err, files) => {
+        files.forEach((file) => {
+          file = path.join(path_, file);
+          fs.stat(file, (err, stats) => {
+            console.log(file, stats);
+            if (stats.isDirectory()) {
+              readdirs(file);
+            }
+          });
         });
       });
-    });
-  };
+    };
+  */
 
   export default {
     name: 'welcome',
@@ -100,8 +102,8 @@
         }
         const catalog = localStorage.catalog;
         // console.log(catalogTool);
-        const promise = catalogTool.loadCatalog(catalog);
-        promise.then((res) => {
+        const promise = loadCatalog(catalog);
+        promise.then(res => loadAllInfo(res)).then((res) => {
           console.log('res', catalog);
           console.log(res);
         }, (err) => {
