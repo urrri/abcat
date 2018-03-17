@@ -60,6 +60,7 @@
     "fs-jetpack": "^1.2.0",
     "jschardet": "~1.6.0",
     "promisify-node": "^0.4.0",
+    "uuid": "^3.2.1",
     "vue": "^2.4.2",
     "vue-electron": "^1.0.6",
     "vue-router": "^2.5.3",

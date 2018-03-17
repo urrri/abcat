@@ -1,4 +1,6 @@
+import uuid from 'uuid';
 import { getDefaultInfo, parseInfoFields } from './info';
+import { fieldStatus } from './fields';
 
 const jfs = require('fs-jetpack');
 const AutoDecoder = require('autodetect-decoder-stream');
@@ -207,6 +209,23 @@ const detectCharsetLoadFile = (path) => {
   });
 };
 
+const getEntry = (node) => {
+  const entry = {
+    typeStatus: fieldStatus.UNKNOWN
+  };
+  if (!node.sub.length) {
+    entry.type = 'book';
+    entry.typeStatus = fieldStatus.EXPECTED_VALUE;
+  } else if (path.basename(node.path)[0] === '~') {
+    entry.type = 'series';
+    entry.typeStatus = fieldStatus.EXPECTED_VALUE;
+  } else {
+    entry.type = 'author';
+    entry.typeStatus = fieldStatus.EXPECTED_VALUE;
+  }
+  return entry;
+};
+
 export const loadInfo = (node) => {
   if (node.dataFile) {
     console.log('Loading data', node.dataFile.path);
@@ -224,6 +243,8 @@ export const loadInfo = (node) => {
     return detectCharsetLoadFile(node.infoFile.path).then((info) => {
       node.data = getDefaultInfo();
       node.data.info = parseInfoFields(info.trim());
+      node.data.entry = getEntry(node);
+      node.data.id = uuid();
     });
   }
   console.log('No info');
