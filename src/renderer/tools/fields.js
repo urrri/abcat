@@ -1,3 +1,14 @@
+const fieldNameThreshold = 20;
+const separator = ':';
+const descriptionThreshold = 80;
+
+export const fieldStatus = {
+  UNKNOWN: 'unknown field',
+  EXPECTED_FIELD: 'expected field',
+  EXPECTED_VALUE: 'expected field value',
+  TRUST: 'full trust'
+};
+
 /**
  * set of unmapped labels from info files
  * @type {Set<string>}
@@ -12,6 +23,10 @@ export const addToUnknownFields = (label) => {
  * map of label name from info file to tag of the field
  */
 export const knownFields = { // todo: load from config
+  'Название:': 'title',
+  'Название :': 'title',
+  'Название': 'title',
+  'Автор:': 'author'
 };
 
 /**
@@ -136,4 +151,53 @@ export const addUserField = (tag, title, type) => {
 export const tryParseFieldValue = (line) => {
   // todo: implement, parse value according to field type
   return false;
+};
+
+export const parseField = (line, index) => {
+  const {status, text} = line;
+  if (status !== fieldStatus.UNKNOWN) return;
+  if (!text) {
+    // empty line
+    line.field = 'unused';
+    line.status = fieldStatus.TRUST;
+    return;
+  }
+
+  const separatorIdx = text.indexOf(separator);
+  const hasSeparator = separatorIdx >= 0;
+
+  if (!hasSeparator) {
+    if (text.length < descriptionThreshold) {
+      if (index === 0) {
+        // short first line without ':' - expected to be title field
+        line.status = fieldStatus.EXPECTED_FIELD;
+        line.field = 'title';
+        return;
+      }
+    } else {
+      // long field without ':' expected to be description
+      line.status = fieldStatus.EXPECTED_FIELD;
+      line.field = 'description';
+      return;
+    }
+  }
+
+  const name = hasSeparator ?
+               text.substr(0, separatorIdx + 1) :
+               Object.keys(knownFields).
+               find(name => (name[name.length - 1] === separator ? false : text.startsWith(name)));
+
+  const field = knownFields[name];
+  if (field) {
+    const value = text.substr(name.length);
+    line.field = field;
+    line.value = (value || '').trim();
+    line.status = tryParseFieldValue(line) ? fieldStatus.TRUST : fieldStatus.EXPECTED_VALUE;
+  } else if (hasSeparator && name && name.length <= fieldNameThreshold) {
+    addToUnknownFields(name);
+  } else if (text.length >= descriptionThreshold) {
+    // too long unknown field - expected to bo part of description
+    line.status = fieldStatus.EXPECTED_FIELD;
+    line.field = 'description';
+  }
 };

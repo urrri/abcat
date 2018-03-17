@@ -32,6 +32,9 @@ module.exports = {
     'no-unused-vars': 0,
     'arrow-body-style': 0,
     'max-len': 0,
-    'linebreak-style': 0
+    'linebreak-style': 0,
+    'quote-props': 0,
+    'indent': 0,
+    'dot-location': 0
   }
 };

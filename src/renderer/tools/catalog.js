@@ -98,6 +98,10 @@ const infoExt = ['.txt', '.info'];
 
 const parseFolder = (folderNode, {level = 0, root, parent} = {}) => {
   const cat = [];
+  const mediaCat = [];
+  const ret = {
+    cat, mediaCat
+  };
 
   const current = {
     parent,
@@ -163,26 +167,30 @@ const parseFolder = (folderNode, {level = 0, root, parent} = {}) => {
     });
   }
 
-  if (level > 0 &&
-      (current.dataFile || current.infoFile || (current.potentialInfoFiles && current.potentialInfoFiles.length))) {
-    cat.push(current);
+  if (level > 0) {
+    if (current.dataFile || current.infoFile || (current.potentialInfoFiles && current.potentialInfoFiles.length)) {
+      cat.push(current);
+    } else if (current.media.length) {
+      mediaCat.push(...current.media);
+    }
   }
 
   // parse sub-folders
   folderNode.folders.forEach((folderNode) => {
     const sub = parseFolder(folderNode, {level: level + 1, root, parent: current});
-    cat.push(...sub);
-    current.sub.push(...sub);
+    cat.push(...sub.cat);
+    current.sub.push(...sub.cat);
+    current.media.push(...sub.mediaCat);
   });
 
-  return cat;
+  return ret;
 };
 
 export const loadCatalog = (root) => {
   root = path.normalize(root);
   return scanPath(root).then((tree) => {
     if (tree.isFolder) {
-      return parseFolder(tree, {root, level: 0});
+      return parseFolder(tree, {root, level: 0}).cat;
     }
     return Promise.reject('Catalog cannot be a file');
   });
