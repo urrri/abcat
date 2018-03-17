@@ -65,25 +65,6 @@
   import SystemInformation from './WelcomeView/SystemInformation';
   import { loadCatalog, loadAllInfo } from '../tools/catalog';
 
-  /*
-    const fs = require('fs');
-    const path = require('path');
-
-    const readdirs = (path_) => {
-      fs.readdir(path_, (err, files) => {
-        files.forEach((file) => {
-          file = path.join(path_, file);
-          fs.stat(file, (err, stats) => {
-            console.log(file, stats);
-            if (stats.isDirectory()) {
-              readdirs(file);
-            }
-          });
-        });
-      });
-    };
-  */
-
   export default {
     name: 'welcome',
     components: {SystemInformation},
