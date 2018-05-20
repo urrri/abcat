@@ -226,6 +226,12 @@ const getEntry = (node) => {
   return entry;
 };
 
+const getDownloadTime = (node) => {
+  const {mtimeMs, ctimeMs, atimeMs, birthtimeMs} = node.infoFile.stats;
+  const time = Math.min(mtimeMs, ctimeMs, atimeMs, birthtimeMs);
+  return new Date(time).toISOString();
+};
+
 export const loadInfo = (node) => {
   if (node.dataFile) {
     console.log('Loading data', node.dataFile.path);
@@ -233,17 +239,13 @@ export const loadInfo = (node) => {
       node.data = JSON.parse(data);
     });
   } else if (node.infoFile) {
-    // return fs.readFile(node.infoFile.path, 'utf8').then((data) => {
-    //   if (data.indexOf('а') < 0) {
-    //     return fs.readFile(node.infoFile.path, '');
-    //   }
-    //   return data;
-    // });
     console.log('Loading info', node.infoFile.path);
     return detectCharsetLoadFile(node.infoFile.path).then((info) => {
       node.data = getDefaultInfo();
       node.data.info = parseInfoFields(info.trim());
+
       node.data.entry = getEntry(node);
+      node.data.published = getDownloadTime(node);
       node.data.id = uuid();
     });
   }
